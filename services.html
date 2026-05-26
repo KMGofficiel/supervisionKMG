@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>État des Services — Supervision Centreon</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 300px;
+            background-color: #0b0f19;
+            padding: 30px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-right: 1px solid #334155;
+        }
+
+        .brand h1 {
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            margin: 0 0 4px 0;
+            color: var(--accent-cyan);
+        }
+
+        .brand p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .nav-link:hover {
+            background: rgba(6, 182, 212, 0.08);
+            color: var(--text-main);
+        }
+
+        .nav-link.active {
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            border-left: 3px solid var(--accent-cyan);
+        }
+
+        .kpi-box {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--accent-cyan);
+        }
+
+        .kpi-box.critical { border-left-color: var(--accent-red); }
+        .kpi-box.warning  { border-left-color: var(--accent-orange); }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 8px 0;
+        }
+
+        .kpi-box.critical .kpi-value { color: var(--accent-red); }
+        .kpi-box.warning  .kpi-value { color: var(--accent-orange); }
+
+        /* MAIN */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-alert {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        /* STATUS BAR */
+        .status-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+
+        .status-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            height: 18px;
+            border-radius: 9px;
+            overflow: hidden;
+            gap: 2px;
+        }
+
+        .bar-seg {
+            transition: flex 0.4s;
+        }
+
+        .bar-ok       { background: var(--accent-green); }
+        .bar-warning  { background: var(--accent-orange); }
+        .bar-critical { background: var(--accent-red); }
+        .bar-unknown  { background: #475569; }
+
+        .legend-row {
+            display: flex;
+            gap: 24px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* TABLE */
+        .section-title {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #334155;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #334155;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .filter-btn:hover { border-color: var(--accent-cyan); color: var(--text-main); }
+        .filter-btn.active-all     { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(6,182,212,0.08); }
+        .filter-btn.active-crit    { border-color: var(--accent-red); color: var(--accent-red); background: rgba(239,68,68,0.08); }
+        .filter-btn.active-warn    { border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245,158,11,0.08); }
+
+        .search-input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            outline: none;
+            width: 260px;
+        }
+
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus { border-color: var(--accent-cyan); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #1e293b;
+            transition: background 0.1s;
+        }
+
+        tbody tr:hover { background: rgba(255,255,255,0.03); }
+        tbody tr:last-child { border-bottom: none; }
+
+        td {
+            padding: 13px 20px;
+            vertical-align: middle;
+        }
+
+        .svc-name {
+            font-weight: 600;
+            color: var(--text-main);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .host-tag {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .poller-tag {
+            background: rgba(6,182,212,0.1);
+            color: var(--accent-cyan);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 0.78rem;
+            font-weight: 500;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .pill-critical {
+            background: rgba(239,68,68,0.12);
+            color: var(--accent-red);
+            border: 1px solid rgba(239,68,68,0.25);
+        }
+
+        .pill-warning {
+            background: rgba(245,158,11,0.12);
+            color: var(--accent-orange);
+            border: 1px solid rgba(245,158,11,0.25);
+        }
+
+        .last-check {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <h1>PREVIEW</h1>
+            <p>Analyse Référentiel</p>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;">
+
+        <nav style="display: flex; flex-direction: column; gap: 4px;">
+            <a href="index.html" class="nav-link">
+                <span>📊</span> Vue d'ensemble
+            </a>
+            <a href="hosts.html" class="nav-link">
+                <span>🖥️</span> État des Hôtes
+            </a>
+            <a href="services.html" class="nav-link active">
+                <span>⚙️</span> État des Services
+            </a>
+        </nav>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;">
+
+        <div class="kpi-box">
+            <div class="kpi-title">Total Services</div>
+            <div class="kpi-value">10 929</div>
+            <small style="color: var(--text-muted);">Supervisés au total</small>
+        </div>
+
+        <div class="kpi-box critical">
+            <div class="kpi-title">Critique</div>
+            <div class="kpi-value">47</div>
+            <small style="color: var(--text-muted);">Services défectueux</small>
+        </div>
+
+        <div class="kpi-box warning">
+            <div class="kpi-title">Warning</div>
+            <div class="kpi-value">158</div>
+            <small style="color: var(--text-muted);">Services en alerte</small>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header>
+            <div>
+                <h2 style="margin: 0; font-size: 1.6rem;">État des Services</h2>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0; font-size: 0.85rem;">Services défectueux — Critique &amp; Warning</p>
+            </div>
+            <div class="status-badge badge-alert">
+                ● 205 services en anomalie
+            </div>
+        </header>
+
+        <!-- Status bar -->
+        <div class="status-bar-wrap">
+            <div class="status-bar-label">
+                <span>Répartition des statuts services</span>
+                <span>10 929 services au total</span>
+            </div>
+            <div class="status-bar">
+                <div class="bar-seg bar-ok"       style="flex: 10681"></div>
+                <div class="bar-seg bar-warning"  style="flex: 158"></div>
+                <div class="bar-seg bar-critical" style="flex: 47"></div>
+                <div class="bar-seg bar-unknown"  style="flex: 43"></div>
+            </div>
+            <div class="legend-row">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: var(--accent-green)"></div>
+                    <span>OK — <strong>10 681</strong></span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: var(--accent-orange)"></div>
+                    <span>Warning — <strong>158</strong></span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: var(--accent-red)"></div>
+                    <span>Critique — <strong>47</strong></span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #475569"></div>
+                    <span>Inconnu — <strong>43</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <section>
+            <div class="section-title">⚠️ Services Défectueux</div>
+            <div class="table-card">
+                <div class="table-toolbar">
+                    <div class="filter-group">
+                        <button class="filter-btn active-all" onclick="filterTable('all', this)">Tous (205)</button>
+                        <button class="filter-btn" onclick="filterTable('CRITICAL', this)">Critique (47)</button>
+                        <button class="filter-btn" onclick="filterTable('WARNING', this)">Warning (158)</button>
+                    </div>
+                    <input class="search-input" type="text" placeholder="🔍 Rechercher un service ou hôte…" oninput="searchTable(this.value)">
+                </div>
+                <table id="servicesTable">
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Hôte</th>
+                            <th>Poller</th>
+                            <th>Statut</th>
+                            <th>Dernier contrôle</th>
+                        </tr>
+                    </thead>
+                    <tbody id="servicesBody">
+                    </tbody>
+                </table>
+                <div class="empty-state" id="emptyState">Aucun service ne correspond à la recherche.</div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const services = [
+            // CRITICAL (47)
+            { svc: "CPU-Usage",        host: "ld3db001p",    poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 2 min" },
+            { svc: "Disk-/var",        host: "ld3db003p",    poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 3 min" },
+            { svc: "Process-Oracle",   host: "ld3app015p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 4 min" },
+            { svc: "HTTP-Status",      host: "ld3app031p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 5 min" },
+            { svc: "Disk-/",           host: "lp5web002p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 6 min" },
+            { svc: "CPU-Usage",        host: "ld3srv042p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 7 min" },
+            { svc: "Memory-Usage",     host: "ld3srv017p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 9 min" },
+            { svc: "Process-Tomcat",   host: "ld3nas002p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 10 min" },
+            { svc: "Disk-/data",       host: "ld3bck001p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 11 min" },
+            { svc: "Database-Status",  host: "lp5db002p",    poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 13 min" },
+            { svc: "CPU-Usage",        host: "ld3app007p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 14 min" },
+            { svc: "Interface-eth0",   host: "ld3fw003p",    poller: "Central",     status: "CRITICAL", check: "il y a 15 min" },
+            { svc: "Disk-/var",        host: "ld3app044p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 17 min" },
+            { svc: "HTTP-Status",      host: "ld3web011p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 19 min" },
+            { svc: "Process-Nginx",    host: "ld3srv063p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 20 min" },
+            { svc: "Disk-/",           host: "lp5app003p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 22 min" },
+            { svc: "CPU-Usage",        host: "ld3srv028p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 23 min" },
+            { svc: "Memory-Usage",     host: "ld3nas005p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 25 min" },
+            { svc: "Process-MySQL",    host: "ld3app052p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 27 min" },
+            { svc: "Database-Status",  host: "ld3db007p",    poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 28 min" },
+            { svc: "Disk-/tmp",        host: "lp5srv006p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 30 min" },
+            { svc: "HTTP-Status",      host: "ld3web019p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 32 min" },
+            { svc: "CPU-Usage",        host: "ld3app061p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 34 min" },
+            { svc: "Process-Apache",   host: "ld3bck004p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 35 min" },
+            { svc: "Disk-/var",        host: "ld3srv091p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 37 min" },
+            { svc: "Memory-Usage",     host: "lp5db005p",    poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 39 min" },
+            { svc: "Interface-bond0",  host: "ld3app073p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 40 min" },
+            { svc: "Database-Status",  host: "ld3web025p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 42 min" },
+            { svc: "Disk-/",           host: "ld3srv104p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 44 min" },
+            { svc: "Process-JBoss",    host: "lp5web009p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 45 min" },
+            { svc: "CPU-Usage",        host: "ld3app082p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 47 min" },
+            { svc: "Disk-/data",       host: "ld3db011p",    poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 49 min" },
+            { svc: "HTTP-Status",      host: "ld3web033p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 51 min" },
+            { svc: "Memory-Usage",     host: "ld3srv137p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 52 min" },
+            { svc: "Process-Postgres", host: "ld3db009p",    poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 54 min" },
+            { svc: "Disk-/var",        host: "ld3app068p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 56 min" },
+            { svc: "SNMP-Status",      host: "lp5web008p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 58 min" },
+            { svc: "CPU-Usage",        host: "ld3srv153p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 1 h" },
+            { svc: "Interface-eth1",   host: "ld3web031p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 1 h" },
+            { svc: "Process-Oracle",   host: "ld3db010p",    poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 1 h" },
+            { svc: "Disk-/",           host: "ld3app079p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 1 h" },
+            { svc: "Memory-Usage",     host: "lp5app006p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 1 h" },
+            { svc: "Database-Status",  host: "ld3srv161p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 2 h" },
+            { svc: "Disk-/var",        host: "ld3bck007p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 2 h" },
+            { svc: "Process-Tomcat",   host: "ld3web035p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 2 h" },
+            { svc: "HTTP-Status",      host: "ld3app083p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 3 h" },
+            { svc: "CPU-Usage",        host: "ld3db012p",    poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 3 h" },
+            // WARNING (158)
+            { svc: "Memory-Usage",     host: "ld3srv005p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 1 min" },
+            { svc: "Load-Average",     host: "ld3app003p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 2 min" },
+            { svc: "Disk-/tmp",        host: "lp5srv001p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 3 min" },
+            { svc: "Swap-Usage",       host: "ld3web003p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 4 min" },
+            { svc: "NTP-Offset",       host: "ld3srv012p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 5 min" },
+            { svc: "Interface-eth0",   host: "ld3app009p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 6 min" },
+            { svc: "Response-Time",    host: "ld3nas001p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 7 min" },
+            { svc: "Memory-Usage",     host: "ld3srv021p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 8 min" },
+            { svc: "Disk-/var",        host: "lp5app001p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 9 min" },
+            { svc: "Load-Average",     host: "ld3web006p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 10 min" },
+            { svc: "Backup-Status",    host: "ld3app013p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 11 min" },
+            { svc: "Swap-Usage",       host: "ld3db002p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 12 min" },
+            { svc: "NTP-Offset",       host: "ld3srv034p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 13 min" },
+            { svc: "Response-Time",    host: "lp5db001p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 14 min" },
+            { svc: "Memory-Usage",     host: "ld3web008p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 15 min" },
+            { svc: "Interface-bond0",  host: "ld3app018p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 16 min" },
+            { svc: "Disk-/",           host: "ld3srv047p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 17 min" },
+            { svc: "Load-Average",     host: "ld3bck002p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 18 min" },
+            { svc: "Backup-Status",    host: "lp5srv003p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 19 min" },
+            { svc: "Swap-Usage",       host: "ld3app022p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 20 min" },
+            { svc: "NTP-Offset",       host: "ld3web013p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 21 min" },
+            { svc: "Response-Time",    host: "ld3srv058p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 22 min" },
+            { svc: "Memory-Usage",     host: "ld3db004p",    poller: "ld3sup004p",  status: "WARNING",  check: "il y a 23 min" },
+            { svc: "Disk-/data",       host: "lp5web004p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 24 min" },
+            { svc: "Load-Average",     host: "ld3app026p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 25 min" },
+            { svc: "Interface-eth0",   host: "ld3nas003p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 26 min" },
+            { svc: "Backup-Status",    host: "ld3srv069p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 27 min" },
+            { svc: "Swap-Usage",       host: "ld3web015p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 28 min" },
+            { svc: "NTP-Offset",       host: "lp5app004p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 29 min" },
+            { svc: "Response-Time",    host: "ld3app033p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 30 min" },
+            { svc: "Memory-Usage",     host: "ld3srv078p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 31 min" },
+            { svc: "Disk-/var",        host: "ld3db005p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 32 min" },
+            { svc: "Load-Average",     host: "ld3web017p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 33 min" },
+            { svc: "Interface-bond0",  host: "lp5srv005p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 34 min" },
+            { svc: "Backup-Status",    host: "ld3app037p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 35 min" },
+            { svc: "Swap-Usage",       host: "ld3bck003p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 36 min" },
+            { svc: "NTP-Offset",       host: "ld3srv086p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 37 min" },
+            { svc: "Response-Time",    host: "ld3app041p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 38 min" },
+            { svc: "Memory-Usage",     host: "lp5web006p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 39 min" },
+            { svc: "Disk-/",           host: "ld3web021p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 40 min" },
+            { svc: "Load-Average",     host: "ld3srv095p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 41 min" },
+            { svc: "Interface-eth1",   host: "ld3db006p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 42 min" },
+            { svc: "Backup-Status",    host: "ld3app048p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 43 min" },
+            { svc: "Swap-Usage",       host: "lp5db003p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 44 min" },
+            { svc: "NTP-Offset",       host: "ld3web023p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 45 min" },
+            { svc: "Response-Time",    host: "ld3nas004p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 46 min" },
+            { svc: "Memory-Usage",     host: "ld3srv106p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 47 min" },
+            { svc: "Disk-/data",       host: "ld3app055p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 48 min" },
+            { svc: "Load-Average",     host: "lp5app005p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 49 min" },
+            { svc: "Interface-eth0",   host: "ld3web027p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 50 min" },
+            { svc: "Backup-Status",    host: "ld3srv113p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 51 min" },
+            { svc: "Swap-Usage",       host: "ld3db008p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 52 min" },
+            { svc: "NTP-Offset",       host: "ld3app059p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 53 min" },
+            { svc: "Response-Time",    host: "lp5web007p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 54 min" },
+            { svc: "Memory-Usage",     host: "ld3web029p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 55 min" },
+            { svc: "Disk-/var",        host: "ld3bck005p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 56 min" },
+            { svc: "Load-Average",     host: "ld3srv121p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 57 min" },
+            { svc: "Interface-bond0",  host: "ld3app064p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 58 min" },
+            { svc: "Backup-Status",    host: "lp5srv007p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 59 min" },
+            { svc: "Swap-Usage",       host: "ld3nas006p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "NTP-Offset",       host: "ld3srv129p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Response-Time",    host: "ld3app068p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Memory-Usage",     host: "lp5web008p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Disk-/",           host: "ld3web031p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Load-Average",     host: "ld3srv137p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Interface-eth1",   host: "ld3bck006p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Backup-Status",    host: "ld3app075p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 1 h" },
+            { svc: "Swap-Usage",       host: "lp5db004p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "NTP-Offset",       host: "ld3web033p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Response-Time",    host: "ld3srv145p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Memory-Usage",     host: "ld3db010p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Disk-/data",       host: "ld3app079p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Load-Average",     host: "lp5app006p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Interface-eth0",   host: "ld3nas007p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Backup-Status",    host: "ld3srv153p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Swap-Usage",       host: "ld3web035p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "NTP-Offset",       host: "ld3app083p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 2 h" },
+            { svc: "Response-Time",    host: "lp5srv008p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "Memory-Usage",     host: "ld3srv161p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "Disk-/var",        host: "ld3bck007p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "Load-Average",     host: "ld3db012p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "Interface-bond0",  host: "ld3app086p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "Backup-Status",    host: "lp5web010p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "Swap-Usage",       host: "ld3nas008p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { svc: "NTP-Offset",       host: "ld3srv169p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 4 h" },
+            { svc: "Response-Time",    host: "ld3web037p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 4 h" },
+            { svc: "Memory-Usage",     host: "ld3app089p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 4 h" },
+            { svc: "Disk-/",           host: "lp5srv009p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 4 h" },
+            { svc: "Load-Average",     host: "ld3srv177p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 4 h" },
+            { svc: "Interface-eth1",   host: "ld3db013p",    poller: "ld3sup002p",  status: "WARNING",  check: "il y a 5 h" },
+            { svc: "Backup-Status",    host: "ld3bck008p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 5 h" },
+            { svc: "Swap-Usage",       host: "ld3app093p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 5 h" },
+            { svc: "NTP-Offset",       host: "lp5db006p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 5 h" },
+            { svc: "Response-Time",    host: "ld3web039p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 5 h" },
+            { svc: "Memory-Usage",     host: "ld3srv185p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 6 h" },
+            { svc: "Disk-/data",       host: "ld3app003p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 6 h" },
+            { svc: "Load-Average",     host: "ld3web003p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 6 h" },
+            { svc: "Interface-eth0",   host: "lp5srv001p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 6 h" },
+            { svc: "Backup-Status",    host: "ld3srv012p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 7 h" },
+            { svc: "Swap-Usage",       host: "ld3app009p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 7 h" },
+            { svc: "NTP-Offset",       host: "ld3srv021p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 7 h" },
+            { svc: "Response-Time",    host: "lp5app001p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 7 h" },
+            { svc: "Memory-Usage",     host: "ld3web006p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 8 h" },
+            { svc: "Disk-/var",        host: "ld3nas001p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 8 h" },
+            { svc: "Load-Average",     host: "ld3bck002p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 8 h" },
+            { svc: "Interface-bond0",  host: "lp5db001p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 9 h" },
+            { svc: "Backup-Status",    host: "ld3app022p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 9 h" },
+            { svc: "Swap-Usage",       host: "ld3srv034p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 9 h" },
+            { svc: "NTP-Offset",       host: "ld3web013p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 9 h" },
+            { svc: "Response-Time",    host: "lp5srv003p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 10 h" },
+            { svc: "Memory-Usage",     host: "ld3db004p",    poller: "ld3sup004p",  status: "WARNING",  check: "il y a 10 h" },
+            { svc: "Disk-/",           host: "ld3web015p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 10 h" },
+            { svc: "Load-Average",     host: "ld3app026p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 10 h" },
+            { svc: "Interface-eth1",   host: "lp5web004p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 11 h" },
+            { svc: "Backup-Status",    host: "ld3nas003p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 11 h" },
+            { svc: "Swap-Usage",       host: "ld3srv047p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 11 h" },
+            { svc: "NTP-Offset",       host: "ld3app033p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 12 h" },
+            { svc: "Response-Time",    host: "lp5app004p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 12 h" },
+            { svc: "Memory-Usage",     host: "ld3web017p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 12 h" },
+            { svc: "Disk-/data",       host: "ld3srv058p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 13 h" },
+            { svc: "Load-Average",     host: "lp5srv005p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 13 h" },
+            { svc: "Interface-eth0",   host: "ld3app037p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 13 h" },
+            { svc: "Backup-Status",    host: "ld3bck003p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 14 h" },
+            { svc: "Swap-Usage",       host: "ld3web021p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 14 h" },
+            { svc: "NTP-Offset",       host: "ld3srv069p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 14 h" },
+            { svc: "Response-Time",    host: "lp5web006p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 15 h" },
+            { svc: "Memory-Usage",     host: "ld3app041p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 15 h" },
+            { svc: "Disk-/var",        host: "ld3db006p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 16 h" },
+            { svc: "Load-Average",     host: "ld3srv078p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 16 h" },
+            { svc: "Interface-bond0",  host: "lp5db003p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 17 h" },
+            { svc: "Backup-Status",    host: "ld3app048p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 17 h" },
+            { svc: "Swap-Usage",       host: "ld3nas004p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 18 h" },
+            { svc: "NTP-Offset",       host: "ld3web023p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 18 h" },
+            { svc: "Response-Time",    host: "ld3srv086p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 19 h" },
+            { svc: "Memory-Usage",     host: "lp5app005p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 20 h" },
+            { svc: "Disk-/",           host: "ld3app055p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 20 h" },
+            { svc: "Load-Average",     host: "ld3web027p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 21 h" },
+            { svc: "Interface-eth1",   host: "ld3srv095p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 21 h" },
+            { svc: "Backup-Status",    host: "lp5web007p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 22 h" },
+            { svc: "Swap-Usage",       host: "ld3bck005p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 22 h" },
+            { svc: "NTP-Offset",       host: "ld3app059p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 23 h" },
+            { svc: "Response-Time",    host: "ld3srv113p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 1 j" },
+            { svc: "Memory-Usage",     host: "lp5srv007p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 1 j" },
+            { svc: "Disk-/data",       host: "ld3web029p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 1 j" },
+            { svc: "Load-Average",     host: "ld3db008p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 1 j" },
+            { svc: "Interface-eth0",   host: "ld3srv121p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 1 j" },
+            { svc: "Backup-Status",    host: "ld3app064p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 1 j" },
+            { svc: "Swap-Usage",       host: "lp5db004p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 2 j" },
+            { svc: "NTP-Offset",       host: "ld3nas006p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 j" },
+            { svc: "Response-Time",    host: "ld3srv129p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 j" },
+            { svc: "Memory-Usage",     host: "ld3web031p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 j" },
+            { svc: "Disk-/var",        host: "ld3app068p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 2 j" },
+        ];
+
+        let currentFilter = 'all';
+        let currentSearch = '';
+
+        function renderTable() {
+            const tbody = document.getElementById('servicesBody');
+            const empty = document.getElementById('emptyState');
+
+            const filtered = services.filter(s => {
+                const matchFilter = currentFilter === 'all' || s.status === currentFilter;
+                const matchSearch = s.svc.toLowerCase().includes(currentSearch) ||
+                                    s.host.toLowerCase().includes(currentSearch) ||
+                                    s.poller.toLowerCase().includes(currentSearch);
+                return matchFilter && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                tbody.innerHTML = filtered.map(s => `
+                    <tr>
+                        <td class="svc-name">${s.svc}</td>
+                        <td class="host-tag">${s.host}</td>
+                        <td><span class="poller-tag">${s.poller}</span></td>
+                        <td>
+                            <span class="status-pill ${s.status === 'CRITICAL' ? 'pill-critical' : 'pill-warning'}">
+                                ● ${s.status}
+                            </span>
+                        </td>
+                        <td class="last-check">${s.check}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function filterTable(status, btn) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.className = 'filter-btn';
+            });
+            if (status === 'all')      btn.classList.add('active-all');
+            if (status === 'CRITICAL') btn.classList.add('active-crit');
+            if (status === 'WARNING')  btn.classList.add('active-warn');
+            renderTable();
+        }
+
+        function searchTable(val) {
+            currentSearch = val.toLowerCase();
+            renderTable();
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>

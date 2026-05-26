@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>État des Hôtes — Supervision Centreon</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 300px;
+            background-color: #0b0f19;
+            padding: 30px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-right: 1px solid #334155;
+        }
+
+        .brand h1 {
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            margin: 0 0 4px 0;
+            color: var(--accent-cyan);
+        }
+
+        .brand p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .nav-link:hover {
+            background: rgba(6, 182, 212, 0.08);
+            color: var(--text-main);
+        }
+
+        .nav-link.active {
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            border-left: 3px solid var(--accent-cyan);
+        }
+
+        .kpi-box {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--accent-cyan);
+        }
+
+        .kpi-box.critical { border-left-color: var(--accent-red); }
+        .kpi-box.warning  { border-left-color: var(--accent-orange); }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 8px 0;
+        }
+
+        .kpi-box.critical .kpi-value { color: var(--accent-red); }
+        .kpi-box.warning  .kpi-value { color: var(--accent-orange); }
+
+        /* MAIN */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-alert {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        /* STATUS BAR */
+        .status-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+
+        .status-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            height: 18px;
+            border-radius: 9px;
+            overflow: hidden;
+            gap: 2px;
+        }
+
+        .bar-seg {
+            transition: flex 0.4s;
+        }
+
+        .bar-ok       { background: var(--accent-green); }
+        .bar-warning  { background: var(--accent-orange); }
+        .bar-critical { background: var(--accent-red); }
+        .bar-unknown  { background: #475569; }
+
+        .legend-row {
+            display: flex;
+            gap: 24px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* TABLE */
+        .section-title {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #334155;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #334155;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .filter-btn:hover { border-color: var(--accent-cyan); color: var(--text-main); }
+        .filter-btn.active-all     { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(6,182,212,0.08); }
+        .filter-btn.active-crit    { border-color: var(--accent-red); color: var(--accent-red); background: rgba(239,68,68,0.08); }
+        .filter-btn.active-warn    { border-color: var(--accent-orange); color: var(--accent-orange); background: rgba(245,158,11,0.08); }
+
+        .search-input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            outline: none;
+            width: 220px;
+        }
+
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus { border-color: var(--accent-cyan); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #1e293b;
+            transition: background 0.1s;
+        }
+
+        tbody tr:hover { background: rgba(255,255,255,0.03); }
+        tbody tr:last-child { border-bottom: none; }
+
+        td {
+            padding: 13px 20px;
+            vertical-align: middle;
+        }
+
+        .host-name {
+            font-weight: 600;
+            color: var(--text-main);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .poller-tag {
+            background: rgba(6,182,212,0.1);
+            color: var(--accent-cyan);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 0.78rem;
+            font-weight: 500;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .pill-critical {
+            background: rgba(239,68,68,0.12);
+            color: var(--accent-red);
+            border: 1px solid rgba(239,68,68,0.25);
+        }
+
+        .pill-warning {
+            background: rgba(245,158,11,0.12);
+            color: var(--accent-orange);
+            border: 1px solid rgba(245,158,11,0.25);
+        }
+
+        .last-check {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .count-label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <h1>PREVIEW</h1>
+            <p>Analyse Référentiel</p>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;">
+
+        <nav style="display: flex; flex-direction: column; gap: 4px;">
+            <a href="index.html" class="nav-link">
+                <span>📊</span> Vue d'ensemble
+            </a>
+            <a href="hosts.html" class="nav-link active">
+                <span>🖥️</span> État des Hôtes
+            </a>
+            <a href="services.html" class="nav-link">
+                <span>⚙️</span> État des Services
+            </a>
+        </nav>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;">
+
+        <div class="kpi-box">
+            <div class="kpi-title">Total Hôtes</div>
+            <div class="kpi-value">879</div>
+            <small style="color: var(--text-muted);">Supervisés au total</small>
+        </div>
+
+        <div class="kpi-box critical">
+            <div class="kpi-title">Critique</div>
+            <div class="kpi-value">32</div>
+            <small style="color: var(--text-muted);">Hôtes défectueux</small>
+        </div>
+
+        <div class="kpi-box warning">
+            <div class="kpi-title">Warning</div>
+            <div class="kpi-value">94</div>
+            <small style="color: var(--text-muted);">Hôtes en alerte</small>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header>
+            <div>
+                <h2 style="margin: 0; font-size: 1.6rem;">État des Hôtes</h2>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0; font-size: 0.85rem;">Hôtes défectueux — Critique &amp; Warning</p>
+            </div>
+            <div class="status-badge badge-alert">
+                ● 126 hôtes en anomalie
+            </div>
+        </header>
+
+        <!-- Status bar -->
+        <div class="status-bar-wrap">
+            <div class="status-bar-label">
+                <span>Répartition des statuts hôtes</span>
+                <span>879 hôtes au total</span>
+            </div>
+            <div class="status-bar">
+                <div class="bar-seg bar-ok"       style="flex: 742"></div>
+                <div class="bar-seg bar-warning"  style="flex: 94"></div>
+                <div class="bar-seg bar-critical" style="flex: 32"></div>
+                <div class="bar-seg bar-unknown"  style="flex: 11"></div>
+            </div>
+            <div class="legend-row">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: var(--accent-green)"></div>
+                    <span>OK / Disponible — <strong>742</strong></span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: var(--accent-orange)"></div>
+                    <span>Warning — <strong>94</strong></span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: var(--accent-red)"></div>
+                    <span>Critique — <strong>32</strong></span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #475569"></div>
+                    <span>Inconnu — <strong>11</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <section>
+            <div class="section-title">⚠️ Hôtes Défectueux</div>
+            <div class="table-card">
+                <div class="table-toolbar">
+                    <div class="filter-group">
+                        <button class="filter-btn active-all" onclick="filterTable('all', this)">Tous (126)</button>
+                        <button class="filter-btn" onclick="filterTable('CRITICAL', this)">Critique (32)</button>
+                        <button class="filter-btn" onclick="filterTable('WARNING', this)">Warning (94)</button>
+                    </div>
+                    <input class="search-input" type="text" placeholder="🔍 Rechercher un hôte…" oninput="searchTable(this.value)">
+                </div>
+                <table id="hostsTable">
+                    <thead>
+                        <tr>
+                            <th>Nom d'hôte</th>
+                            <th>Poller</th>
+                            <th>Statut</th>
+                            <th>Dernier contrôle</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hostsBody">
+                    </tbody>
+                </table>
+                <div class="empty-state" id="emptyState">Aucun hôte ne correspond à la recherche.</div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const hosts = [
+            // CRITICAL (32)
+            { name: "ld3db001p",    poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 3 min" },
+            { name: "ld3db003p",    poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 3 min" },
+            { name: "ld3app015p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 5 min" },
+            { name: "ld3app031p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 7 min" },
+            { name: "lp5web002p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 8 min" },
+            { name: "ld3srv042p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 9 min" },
+            { name: "ld3srv017p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 11 min" },
+            { name: "ld3nas002p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 12 min" },
+            { name: "ld3bck001p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 14 min" },
+            { name: "lp5db002p",    poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 15 min" },
+            { name: "ld3app007p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 17 min" },
+            { name: "ld3fw003p",    poller: "Central",     status: "CRITICAL", check: "il y a 18 min" },
+            { name: "ld3app044p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 20 min" },
+            { name: "ld3web011p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 22 min" },
+            { name: "ld3srv063p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 24 min" },
+            { name: "lp5app003p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 25 min" },
+            { name: "ld3srv028p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 27 min" },
+            { name: "ld3nas005p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 29 min" },
+            { name: "ld3app052p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 31 min" },
+            { name: "ld3db007p",    poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 32 min" },
+            { name: "lp5srv006p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 34 min" },
+            { name: "ld3web019p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 36 min" },
+            { name: "ld3app061p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 38 min" },
+            { name: "ld3bck004p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 40 min" },
+            { name: "ld3srv091p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 42 min" },
+            { name: "lp5db005p",    poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 44 min" },
+            { name: "ld3app073p",   poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 46 min" },
+            { name: "ld3web025p",   poller: "ld3sup005p",  status: "CRITICAL", check: "il y a 48 min" },
+            { name: "ld3srv104p",   poller: "ld3sup002p",  status: "CRITICAL", check: "il y a 50 min" },
+            { name: "lp5web009p",   poller: "lp5sup001p",  status: "CRITICAL", check: "il y a 52 min" },
+            { name: "ld3app082p",   poller: "ld3sup001p",  status: "CRITICAL", check: "il y a 54 min" },
+            { name: "ld3db011p",    poller: "ld3sup004p",  status: "CRITICAL", check: "il y a 57 min" },
+            // WARNING (94)
+            { name: "ld3srv005p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 min" },
+            { name: "ld3app003p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 4 min" },
+            { name: "lp5srv001p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 6 min" },
+            { name: "ld3web003p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 6 min" },
+            { name: "ld3srv012p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 7 min" },
+            { name: "ld3app009p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 10 min" },
+            { name: "ld3nas001p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 10 min" },
+            { name: "ld3srv021p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 13 min" },
+            { name: "lp5app001p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 14 min" },
+            { name: "ld3web006p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 16 min" },
+            { name: "ld3app013p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 16 min" },
+            { name: "ld3db002p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 19 min" },
+            { name: "ld3srv034p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 21 min" },
+            { name: "lp5db001p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 21 min" },
+            { name: "ld3web008p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 23 min" },
+            { name: "ld3app018p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 25 min" },
+            { name: "ld3srv047p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 26 min" },
+            { name: "ld3bck002p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 28 min" },
+            { name: "lp5srv003p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 28 min" },
+            { name: "ld3app022p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 30 min" },
+            { name: "ld3web013p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 33 min" },
+            { name: "ld3srv058p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 33 min" },
+            { name: "ld3db004p",    poller: "ld3sup004p",  status: "WARNING",  check: "il y a 35 min" },
+            { name: "lp5web004p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 37 min" },
+            { name: "ld3app026p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 37 min" },
+            { name: "ld3nas003p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 39 min" },
+            { name: "ld3srv069p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 41 min" },
+            { name: "ld3web015p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 43 min" },
+            { name: "lp5app004p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 45 min" },
+            { name: "ld3app033p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 47 min" },
+            { name: "ld3srv078p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 49 min" },
+            { name: "ld3db005p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 51 min" },
+            { name: "ld3web017p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 53 min" },
+            { name: "lp5srv005p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 55 min" },
+            { name: "ld3app037p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 57 min" },
+            { name: "ld3bck003p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 59 min" },
+            { name: "ld3srv086p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3app041p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "lp5web006p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3web021p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3srv095p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3db006p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3app048p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "lp5db003p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3web023p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3nas004p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3srv106p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "ld3app055p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 1 h" },
+            { name: "lp5app005p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3web027p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3srv113p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3db008p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3app059p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "lp5web007p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3web029p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3bck005p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3srv121p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3app064p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "lp5srv007p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3nas006p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3srv129p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 2 h" },
+            { name: "ld3db009p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "ld3app068p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "lp5web008p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "ld3web031p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "ld3srv137p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "ld3bck006p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "ld3app075p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "lp5db004p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 3 h" },
+            { name: "ld3web033p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "ld3srv145p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "ld3db010p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "ld3app079p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "lp5app006p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "ld3nas007p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "ld3srv153p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 4 h" },
+            { name: "ld3web035p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 5 h" },
+            { name: "ld3app083p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 5 h" },
+            { name: "lp5srv008p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 5 h" },
+            { name: "ld3srv161p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 5 h" },
+            { name: "ld3bck007p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 5 h" },
+            { name: "ld3db012p",    poller: "ld3sup005p",  status: "WARNING",  check: "il y a 5 h" },
+            { name: "ld3app086p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 6 h" },
+            { name: "lp5web010p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 6 h" },
+            { name: "ld3nas008p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 6 h" },
+            { name: "ld3srv169p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 6 h" },
+            { name: "ld3web037p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 7 h" },
+            { name: "ld3app089p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 7 h" },
+            { name: "lp5srv009p",   poller: "lp5sup001p",  status: "WARNING",  check: "il y a 7 h" },
+            { name: "ld3srv177p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 7 h" },
+            { name: "ld3db013p",    poller: "ld3sup002p",  status: "WARNING",  check: "il y a 8 h" },
+            { name: "ld3bck008p",   poller: "ld3sup005p",  status: "WARNING",  check: "il y a 8 h" },
+            { name: "ld3app093p",   poller: "ld3sup004p",  status: "WARNING",  check: "il y a 8 h" },
+            { name: "lp5db006p",    poller: "lp5sup001p",  status: "WARNING",  check: "il y a 9 h" },
+            { name: "ld3web039p",   poller: "ld3sup001p",  status: "WARNING",  check: "il y a 9 h" },
+            { name: "ld3srv185p",   poller: "ld3sup002p",  status: "WARNING",  check: "il y a 10 h" },
+        ];
+
+        let currentFilter = 'all';
+        let currentSearch = '';
+
+        function renderTable() {
+            const tbody = document.getElementById('hostsBody');
+            const empty = document.getElementById('emptyState');
+
+            const filtered = hosts.filter(h => {
+                const matchFilter = currentFilter === 'all' || h.status === currentFilter;
+                const matchSearch = h.name.toLowerCase().includes(currentSearch) ||
+                                    h.poller.toLowerCase().includes(currentSearch);
+                return matchFilter && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                tbody.innerHTML = filtered.map(h => `
+                    <tr>
+                        <td class="host-name">${h.name}</td>
+                        <td><span class="poller-tag">${h.poller}</span></td>
+                        <td>
+                            <span class="status-pill ${h.status === 'CRITICAL' ? 'pill-critical' : 'pill-warning'}">
+                                ● ${h.status}
+                            </span>
+                        </td>
+                        <td class="last-check">${h.check}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function filterTable(status, btn) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.className = 'filter-btn';
+            });
+            if (status === 'all')      btn.classList.add('active-all');
+            if (status === 'CRITICAL') btn.classList.add('active-crit');
+            if (status === 'WARNING')  btn.classList.add('active-warn');
+            renderTable();
+        }
+
+        function searchTable(val) {
+            currentSearch = val.toLowerCase();
+            renderTable();
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
