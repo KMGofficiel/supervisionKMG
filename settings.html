@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paramètres — Supervision Centreon</title>
+    <script>
+        (function() {
+            var s = localStorage.getItem('app_settings');
+            if (s) {
+                s = JSON.parse(s);
+                var r = document.documentElement.style;
+                if (s.bgMain)  r.setProperty('--bg-main',  s.bgMain);
+                if (s.bgCard)  r.setProperty('--bg-card',  s.bgCard);
+                if (s.accent)  r.setProperty('--accent-cyan', s.accent);
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: #0b0f19;
+            padding: 30px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            border-right: 1px solid #334155;
+            flex-shrink: 0;
+        }
+
+        .brand h1 {
+            font-size: 1.4rem;
+            letter-spacing: 1px;
+            margin: 0 0 4px 0;
+            color: var(--accent-cyan);
+        }
+
+        .brand p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .kpi-box {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--accent-cyan);
+        }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 8px 0;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Settings Cards ─────────────────────────────── */
+        .settings-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .settings-card-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-card-header h2 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .settings-card-header .badge-public {
+            margin-left: auto;
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(16,185,129,0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(16,185,129,0.25);
+            font-weight: 600;
+        }
+
+        .settings-card-header .badge-locked {
+            margin-left: auto;
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(239,68,68,0.12);
+            color: var(--accent-red);
+            border: 1px solid rgba(239,68,68,0.25);
+            font-weight: 600;
+        }
+
+        .settings-card-header .badge-unlocked {
+            margin-left: auto;
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(6,182,212,0.12);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6,182,212,0.25);
+            font-weight: 600;
+        }
+
+        .settings-card-body {
+            padding: 24px;
+        }
+
+        /* ── Login Section ──────────────────────────────── */
+        .login-wrap {
+            display: flex;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .login-form-area { flex: 1; min-width: 260px; }
+        .login-info-area {
+            flex: 1;
+            min-width: 220px;
+            background: rgba(6,182,212,0.06);
+            border: 1px solid rgba(6,182,212,0.18);
+            border-radius: 12px;
+            padding: 18px 22px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .login-info-area strong { color: var(--text-main); }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s;
+        }
+
+        .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: #0f172a;
+        }
+
+        .btn-danger {
+            background: rgba(239,68,68,0.15);
+            color: var(--accent-red);
+            border: 1px solid rgba(239,68,68,0.3);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid #334155;
+        }
+
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 0.78rem;
+        }
+
+        .error-msg {
+            color: var(--accent-red);
+            font-size: 0.82rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .success-msg {
+            color: var(--accent-green);
+            font-size: 0.82rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* ── Logged-in status bar ───────────────────────── */
+        .auth-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            background: rgba(16,185,129,0.08);
+            border: 1px solid rgba(16,185,129,0.2);
+            border-radius: 10px;
+            font-size: 0.85rem;
+        }
+
+        .auth-bar .auth-dot {
+            width: 8px; height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .auth-bar span { color: var(--text-muted); }
+        .auth-bar strong { color: var(--accent-green); }
+
+        /* ── Theme Swatches ─────────────────────────────── */
+        .theme-grid {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .theme-swatch {
+            width: 120px;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            cursor: pointer;
+            overflow: hidden;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+
+        .theme-swatch:hover { transform: translateY(-2px); border-color: #475569; }
+        .theme-swatch.active { border-color: var(--accent-cyan); }
+
+        .theme-preview {
+            height: 56px;
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+        }
+
+        .tp-sidebar { width: 28px; border-radius: 4px; }
+        .tp-main { flex: 1; border-radius: 4px; }
+
+        .theme-name {
+            padding: 8px 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-align: center;
+            background: #0b0f19;
+            color: var(--text-muted);
+        }
+
+        .theme-swatch.active .theme-name { color: var(--accent-cyan); }
+
+        /* ── Background Color Picker ────────────────────── */
+        .bg-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .bg-dot {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+
+        .bg-dot:hover { transform: scale(1.12); }
+        .bg-dot.active { border-color: var(--accent-cyan); }
+
+        .bg-custom-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bg-custom-wrap input[type="color"] {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            border: 3px solid #334155;
+            background: none;
+            cursor: pointer;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .bg-custom-wrap label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ── Lock Overlay ───────────────────────────────── */
+        .lock-overlay {
+            padding: 32px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .lock-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        .lock-overlay p {
+            margin: 0 0 6px;
+            font-size: 0.9rem;
+        }
+
+        .lock-overlay small {
+            font-size: 0.78rem;
+            color: #475569;
+        }
+
+        /* ── Data Tables ────────────────────────────────── */
+        .data-table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            margin-top: 16px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table th {
+            background: #0f172a;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table td {
+            padding: 10px 14px;
+            border-top: 1px solid #334155;
+            color: var(--text-main);
+        }
+
+        .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .status-badge-sm {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .status-CRITICAL { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+        .status-WARNING  { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+        .status-OK       { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .status-UNKNOWN  { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+
+        .empty-row td {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 24px;
+            font-style: italic;
+        }
+
+        /* ── Add Form ───────────────────────────────────── */
+        .add-form {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(6,182,212,0.04);
+            border: 1px dashed rgba(6,182,212,0.25);
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
+        .add-form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .add-form .form-group { margin-bottom: 0; }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* ── Responsive ─────────────────────────────────── */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <h1>PREVIEW</h1>
+            <p>Analyse Référentiel</p>
+        </div>
+
+        <hr style="border:0;border-top:1px solid #334155;margin:4px 0;">
+
+        <nav style="display:flex;flex-direction:column;gap:4px;">
+            <a href="index.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;text-decoration:none;font-size:0.88rem;font-weight:500;color:var(--text-muted);">
+                <span>📊</span> Vue d'ensemble
+            </a>
+            <a href="hosts.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;text-decoration:none;font-size:0.88rem;font-weight:500;color:var(--text-muted);">
+                <span>🖥️</span> État des Hôtes
+            </a>
+            <a href="services.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;text-decoration:none;font-size:0.88rem;font-weight:500;color:var(--text-muted);">
+                <span>⚙️</span> État des Services
+            </a>
+            <a href="settings.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;text-decoration:none;font-size:0.88rem;font-weight:500;background:rgba(6,182,212,0.12);color:var(--accent-cyan);border-left:3px solid var(--accent-cyan);">
+                <span>🔧</span> Paramètres
+            </a>
+        </nav>
+
+        <hr style="border:0;border-top:1px solid #334155;margin:4px 0;">
+
+        <div class="kpi-box">
+            <div class="kpi-title">Hôtes Traités</div>
+            <div class="kpi-value">879</div>
+            <small style="color:var(--text-muted);">Fichiers JSON uniques</small>
+        </div>
+
+        <div class="kpi-box">
+            <div class="kpi-title">Total Services</div>
+            <div class="kpi-value">10 929</div>
+            <small style="color:var(--text-muted);">Supervisés au total</small>
+        </div>
+
+        <div class="kpi-box">
+            <div class="kpi-title">Pollers Actifs</div>
+            <div class="kpi-value">6</div>
+            <small style="color:var(--text-muted);">Moteurs d'analyse</small>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header>
+            <div>
+                <h2 style="margin:0;font-size:1.6rem;">Paramètres</h2>
+                <p style="color:var(--text-muted);margin:4px 0 0;font-size:0.85rem;">Configuration de l'interface et de la supervision</p>
+            </div>
+            <div id="authStatusBar" style="display:none;" class="auth-bar">
+                <div class="auth-dot"></div>
+                <div><strong>admin</strong> <span>— connecté</span></div>
+                <button class="btn btn-ghost btn-sm" onclick="logout()">Déconnexion</button>
+            </div>
+        </header>
+
+        <!-- ─── LOGIN CARD ──────────────────────────────── -->
+        <div id="loginCard" class="settings-card">
+            <div class="settings-card-header">
+                <span>🔐</span>
+                <h2>Connexion administrateur</h2>
+            </div>
+            <div class="settings-card-body">
+                <div class="login-wrap">
+                    <div class="login-form-area">
+                        <div class="form-group">
+                            <label>Identifiant</label>
+                            <input type="text" id="loginUser" placeholder="admin" autocomplete="username">
+                        </div>
+                        <div class="form-group">
+                            <label>Mot de passe</label>
+                            <input type="password" id="loginPass" placeholder="••••••" autocomplete="current-password"
+                                onkeydown="if(event.key==='Enter') doLogin()">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="doLogin()">Se connecter</button>
+                        </div>
+                        <div class="error-msg" id="loginError">Identifiant ou mot de passe incorrect.</div>
+                    </div>
+                    <div class="login-info-area">
+                        <strong>Accès sans connexion</strong><br>
+                        Modification du thème et du fond de l'interface.<br><br>
+                        <strong>Accès avec connexion</strong><br>
+                        Gestion complète des hôtes et des services supervisés (ajout, modification, suppression).
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── APPARENCE (public) ──────────────────────── -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <span>🎨</span>
+                <h2>Apparence</h2>
+                <span class="badge-public">Accessible sans connexion</span>
+            </div>
+            <div class="settings-card-body">
+
+                <div class="section-title" style="font-size:0.85rem;margin-bottom:12px;">Thème de couleurs</div>
+                <div class="theme-grid" id="themeGrid">
+
+                    <div class="theme-swatch active" data-theme="nuit" onclick="setTheme('nuit')">
+                        <div class="theme-preview" style="background:#0b0f19;">
+                            <div class="tp-sidebar" style="background:#0f172a;"></div>
+                            <div class="tp-main"   style="background:#1e293b;"></div>
+                        </div>
+                        <div class="theme-name">Nuit</div>
+                    </div>
+
+                    <div class="theme-swatch" data-theme="ocean" onclick="setTheme('ocean')">
+                        <div class="theme-preview" style="background:#020d1a;">
+                            <div class="tp-sidebar" style="background:#0a1628;"></div>
+                            <div class="tp-main"   style="background:#0d2137;"></div>
+                        </div>
+                        <div class="theme-name">Océan</div>
+                    </div>
+
+                    <div class="theme-swatch" data-theme="ardoise" onclick="setTheme('ardoise')">
+                        <div class="theme-preview" style="background:#111827;">
+                            <div class="tp-sidebar" style="background:#1f2937;"></div>
+                            <div class="tp-main"   style="background:#374151;"></div>
+                        </div>
+                        <div class="theme-name">Ardoise</div>
+                    </div>
+
+                    <div class="theme-swatch" data-theme="violet" onclick="setTheme('violet')">
+                        <div class="theme-preview" style="background:#0f0720;">
+                            <div class="tp-sidebar" style="background:#1a0a2e;"></div>
+                            <div class="tp-main"   style="background:#1e1040;"></div>
+                        </div>
+                        <div class="theme-name">Violet</div>
+                    </div>
+
+                </div>
+
+                <div class="section-title" style="font-size:0.85rem;margin-bottom:12px;margin-top:8px;">Couleur de fond personnalisée</div>
+                <div class="bg-options">
+                    <div class="bg-dot" style="background:#0f172a;" data-color="#0f172a" onclick="setBgColor('#0f172a')"></div>
+                    <div class="bg-dot" style="background:#0a1628;" data-color="#0a1628" onclick="setBgColor('#0a1628')"></div>
+                    <div class="bg-dot" style="background:#111827;" data-color="#111827" onclick="setBgColor('#111827')"></div>
+                    <div class="bg-dot" style="background:#1a0a2e;" data-color="#1a0a2e" onclick="setBgColor('#1a0a2e')"></div>
+                    <div class="bg-dot" style="background:#0a1f0a;" data-color="#0a1f0a" onclick="setBgColor('#0a1f0a')"></div>
+                    <div class="bg-dot" style="background:#1a0a0a;" data-color="#1a0a0a" onclick="setBgColor('#1a0a0a')"></div>
+                    <div class="bg-custom-wrap">
+                        <input type="color" id="bgColorPicker" value="#0f172a" oninput="setBgColor(this.value)">
+                        <label for="bgColorPicker">Couleur personnalisée</label>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <button class="btn btn-ghost btn-sm" onclick="resetAppearance()">↺ Rétablir les valeurs par défaut</button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ─── HÔTES (protected) ───────────────────────── -->
+        <div class="settings-card" id="cardHotes">
+            <div class="settings-card-header">
+                <span>🖥️</span>
+                <h2>Gestion des Hôtes</h2>
+                <span class="badge-locked" id="badgeHotes">🔒 Connexion requise</span>
+            </div>
+
+            <!-- Lock overlay (shown when not logged in) -->
+            <div id="lockHotes" class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <p>Connexion administrateur requise</p>
+                <small>Connectez-vous ci-dessus pour gérer les hôtes supervisés.</small>
+            </div>
+
+            <!-- Content (shown when logged in) -->
+            <div id="contentHotes" class="settings-card-body" style="display:none;">
+
+                <div class="add-form" id="addHostForm">
+                    <div style="font-size:0.82rem;font-weight:700;color:var(--accent-cyan);text-transform:uppercase;margin-bottom:4px;">Ajouter un hôte</div>
+                    <div class="add-form-row">
+                        <div class="form-group">
+                            <label>Nom d'hôte</label>
+                            <input type="text" id="newHostName" placeholder="ex: ld3srv999p">
+                        </div>
+                        <div class="form-group">
+                            <label>Poller</label>
+                            <select id="newHostPoller">
+                                <option>ld3sup001p</option>
+                                <option>ld3sup002p</option>
+                                <option>ld3sup004p</option>
+                                <option>ld3sup005p</option>
+                                <option>lp5sup001p</option>
+                                <option>Central</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Statut</label>
+                            <select id="newHostStatus">
+                                <option value="OK">OK</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="CRITICAL">CRITICAL</option>
+                                <option value="UNKNOWN">UNKNOWN</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Dernier contrôle</label>
+                            <input type="text" id="newHostCheck" placeholder="ex: il y a 1 min">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="addHost()">+ Ajouter</button>
+                        <span class="success-msg" id="hostAddMsg">Hôte ajouté avec succès.</span>
+                        <span class="error-msg"   id="hostErrMsg">Veuillez renseigner le nom d'hôte.</span>
+                    </div>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nom d'hôte</th>
+                                <th>Poller</th>
+                                <th>Statut</th>
+                                <th>Dernier contrôle</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hostsSettingsBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top:12px;font-size:0.78rem;color:var(--text-muted);">
+                    Seuls les hôtes ajoutés ici sont affichés. Les hôtes intégrés sont gérés par les pollers.
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ─── SERVICES (protected) ────────────────────── -->
+        <div class="settings-card" id="cardServices">
+            <div class="settings-card-header">
+                <span>⚙️</span>
+                <h2>Gestion des Services</h2>
+                <span class="badge-locked" id="badgeServices">🔒 Connexion requise</span>
+            </div>
+
+            <div id="lockServices" class="lock-overlay">
+                <div class="lock-icon">🔒</div>
+                <p>Connexion administrateur requise</p>
+                <small>Connectez-vous ci-dessus pour gérer les services supervisés.</small>
+            </div>
+
+            <div id="contentServices" class="settings-card-body" style="display:none;">
+
+                <div class="add-form">
+                    <div style="font-size:0.82rem;font-weight:700;color:var(--accent-cyan);text-transform:uppercase;margin-bottom:4px;">Ajouter un service</div>
+                    <div class="add-form-row">
+                        <div class="form-group">
+                            <label>Nom du service</label>
+                            <input type="text" id="newSvcName" placeholder="ex: CPU-Usage">
+                        </div>
+                        <div class="form-group">
+                            <label>Hôte associé</label>
+                            <input type="text" id="newSvcHost" placeholder="ex: ld3srv999p">
+                        </div>
+                        <div class="form-group">
+                            <label>Poller</label>
+                            <select id="newSvcPoller">
+                                <option>ld3sup001p</option>
+                                <option>ld3sup002p</option>
+                                <option>ld3sup004p</option>
+                                <option>ld3sup005p</option>
+                                <option>lp5sup001p</option>
+                                <option>Central</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Statut</label>
+                            <select id="newSvcStatus">
+                                <option value="OK">OK</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="CRITICAL">CRITICAL</option>
+                                <option value="UNKNOWN">UNKNOWN</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="addService()">+ Ajouter</button>
+                        <span class="success-msg" id="svcAddMsg">Service ajouté avec succès.</span>
+                        <span class="error-msg"   id="svcErrMsg">Veuillez renseigner le nom du service.</span>
+                    </div>
+                </div>
+
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Hôte</th>
+                                <th>Poller</th>
+                                <th>Statut</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="servicesSettingsBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top:12px;font-size:0.78rem;color:var(--text-muted);">
+                    Seuls les services ajoutés ici sont affichés. Les services intégrés sont gérés par les pollers.
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+    // ─── Auth ───────────────────────────────────────────────────────────────
+    const CREDENTIALS = { user: 'admin', pass: 'admin' };
+
+    function isLoggedIn() {
+        return sessionStorage.getItem('app_auth') === 'true';
+    }
+
+    function doLogin() {
+        var u = document.getElementById('loginUser').value.trim();
+        var p = document.getElementById('loginPass').value;
+        if (u === CREDENTIALS.user && p === CREDENTIALS.pass) {
+            sessionStorage.setItem('app_auth', 'true');
+            renderAuthState();
+        } else {
+            document.getElementById('loginError').style.display = 'block';
+        }
+    }
+
+    function logout() {
+        sessionStorage.removeItem('app_auth');
+        renderAuthState();
+    }
+
+    function renderAuthState() {
+        var logged = isLoggedIn();
+
+        document.getElementById('loginCard').style.display  = logged ? 'none' : 'block';
+        document.getElementById('authStatusBar').style.display = logged ? 'flex' : 'none';
+
+        // Hosts
+        document.getElementById('lockHotes').style.display     = logged ? 'none'  : 'block';
+        document.getElementById('contentHotes').style.display  = logged ? 'block' : 'none';
+        document.getElementById('badgeHotes').textContent      = logged ? '🔓 Déverrouillé' : '🔒 Connexion requise';
+        document.getElementById('badgeHotes').className        = logged ? 'badge-unlocked'  : 'badge-locked';
+
+        // Services
+        document.getElementById('lockServices').style.display    = logged ? 'none'  : 'block';
+        document.getElementById('contentServices').style.display = logged ? 'block' : 'none';
+        document.getElementById('badgeServices').textContent     = logged ? '🔓 Déverrouillé' : '🔒 Connexion requise';
+        document.getElementById('badgeServices').className       = logged ? 'badge-unlocked'  : 'badge-locked';
+
+        if (logged) {
+            renderHostsTable();
+            renderServicesTable();
+        }
+    }
+
+    // ─── Theme ──────────────────────────────────────────────────────────────
+    var THEMES = {
+        nuit:    { bgMain: '#0f172a', bgCard: '#1e293b', accent: '#06b6d4' },
+        ocean:   { bgMain: '#0a1628', bgCard: '#0d2137', accent: '#0ea5e9' },
+        ardoise: { bgMain: '#1f2937', bgCard: '#374151', accent: '#06b6d4' },
+        violet:  { bgMain: '#1a0a2e', bgCard: '#1e1040', accent: '#a855f7' }
+    };
+
+    function applyThemeVars(t) {
+        var r = document.documentElement.style;
+        r.setProperty('--bg-main',    t.bgMain);
+        r.setProperty('--bg-card',    t.bgCard);
+        r.setProperty('--accent-cyan', t.accent);
+    }
+
+    function setTheme(name) {
+        var t = THEMES[name];
+        if (!t) return;
+        applyThemeVars(t);
+        var s = getSettings();
+        s.theme  = name;
+        s.bgMain = t.bgMain;
+        s.bgCard = t.bgCard;
+        s.accent = t.accent;
+        saveSettings(s);
+        document.querySelectorAll('.theme-swatch').forEach(function(el) {
+            el.classList.toggle('active', el.dataset.theme === name);
+        });
+        syncBgDots(t.bgMain);
+    }
+
+    function setBgColor(hex) {
+        var r = document.documentElement.style;
+        r.setProperty('--bg-main', hex);
+        var s = getSettings();
+        s.bgMain = hex;
+        saveSettings(s);
+        document.getElementById('bgColorPicker').value = hex;
+        syncBgDots(hex);
+    }
+
+    function syncBgDots(hex) {
+        document.querySelectorAll('.bg-dot').forEach(function(el) {
+            el.classList.toggle('active', el.dataset.color && el.dataset.color.toLowerCase() === hex.toLowerCase());
+        });
+    }
+
+    function resetAppearance() {
+        var def = THEMES['nuit'];
+        applyThemeVars(def);
+        var s = getSettings();
+        s.theme  = 'nuit';
+        s.bgMain = def.bgMain;
+        s.bgCard = def.bgCard;
+        s.accent = def.accent;
+        saveSettings(s);
+        document.querySelectorAll('.theme-swatch').forEach(function(el) {
+            el.classList.toggle('active', el.dataset.theme === 'nuit');
+        });
+        document.getElementById('bgColorPicker').value = def.bgMain;
+        syncBgDots(def.bgMain);
+    }
+
+    // ─── Settings persistence ────────────────────────────────────────────────
+    function getSettings() {
+        try { return JSON.parse(localStorage.getItem('app_settings')) || {}; } catch(e) { return {}; }
+    }
+
+    function saveSettings(s) {
+        localStorage.setItem('app_settings', JSON.stringify(s));
+    }
+
+    function getCustomHosts() {
+        try { return JSON.parse(localStorage.getItem('app_custom_hosts')) || []; } catch(e) { return []; }
+    }
+
+    function saveCustomHosts(arr) {
+        localStorage.setItem('app_custom_hosts', JSON.stringify(arr));
+    }
+
+    function getCustomServices() {
+        try { return JSON.parse(localStorage.getItem('app_custom_services')) || []; } catch(e) { return []; }
+    }
+
+    function saveCustomServices(arr) {
+        localStorage.setItem('app_custom_services', JSON.stringify(arr));
+    }
+
+    // ─── Hosts CRUD ──────────────────────────────────────────────────────────
+    function addHost() {
+        var name  = document.getElementById('newHostName').value.trim();
+        var poller= document.getElementById('newHostPoller').value;
+        var status= document.getElementById('newHostStatus').value;
+        var check = document.getElementById('newHostCheck').value.trim() || 'il y a 1 min';
+
+        document.getElementById('hostErrMsg').style.display  = 'none';
+        document.getElementById('hostAddMsg').style.display  = 'none';
+
+        if (!name) {
+            document.getElementById('hostErrMsg').style.display = 'block';
+            return;
+        }
+
+        var hosts = getCustomHosts();
+        hosts.push({ name: name, poller: poller, status: status, check: check });
+        saveCustomHosts(hosts);
+
+        document.getElementById('newHostName').value  = '';
+        document.getElementById('newHostCheck').value = '';
+        document.getElementById('hostAddMsg').style.display = 'block';
+        setTimeout(function() { document.getElementById('hostAddMsg').style.display = 'none'; }, 2500);
+
+        renderHostsTable();
+    }
+
+    function deleteHost(idx) {
+        var hosts = getCustomHosts();
+        hosts.splice(idx, 1);
+        saveCustomHosts(hosts);
+        renderHostsTable();
+    }
+
+    function renderHostsTable() {
+        var hosts = getCustomHosts();
+        var tbody = document.getElementById('hostsSettingsBody');
+        if (!hosts.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Aucun hôte personnalisé. Utilisez le formulaire ci-dessus pour en ajouter.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = hosts.map(function(h, i) {
+            return '<tr>' +
+                '<td style="font-weight:600;">' + esc(h.name) + '</td>' +
+                '<td style="color:var(--text-muted);">' + esc(h.poller) + '</td>' +
+                '<td><span class="status-badge-sm status-' + esc(h.status) + '">' + esc(h.status) + '</span></td>' +
+                '<td style="color:var(--text-muted);">' + esc(h.check) + '</td>' +
+                '<td><button class="btn btn-danger btn-sm" onclick="deleteHost(' + i + ')">Supprimer</button></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    // ─── Services CRUD ───────────────────────────────────────────────────────
+    function addService() {
+        var name   = document.getElementById('newSvcName').value.trim();
+        var host   = document.getElementById('newSvcHost').value.trim();
+        var poller = document.getElementById('newSvcPoller').value;
+        var status = document.getElementById('newSvcStatus').value;
+
+        document.getElementById('svcErrMsg').style.display  = 'none';
+        document.getElementById('svcAddMsg').style.display  = 'none';
+
+        if (!name) {
+            document.getElementById('svcErrMsg').style.display = 'block';
+            return;
+        }
+
+        var svcs = getCustomServices();
+        svcs.push({ name: name, host: host, poller: poller, status: status });
+        saveCustomServices(svcs);
+
+        document.getElementById('newSvcName').value = '';
+        document.getElementById('newSvcHost').value = '';
+        document.getElementById('svcAddMsg').style.display = 'block';
+        setTimeout(function() { document.getElementById('svcAddMsg').style.display = 'none'; }, 2500);
+
+        renderServicesTable();
+    }
+
+    function deleteService(idx) {
+        var svcs = getCustomServices();
+        svcs.splice(idx, 1);
+        saveCustomServices(svcs);
+        renderServicesTable();
+    }
+
+    function renderServicesTable() {
+        var svcs  = getCustomServices();
+        var tbody = document.getElementById('servicesSettingsBody');
+        if (!svcs.length) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Aucun service personnalisé. Utilisez le formulaire ci-dessus pour en ajouter.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = svcs.map(function(s, i) {
+            return '<tr>' +
+                '<td style="font-weight:600;">' + esc(s.name) + '</td>' +
+                '<td style="color:var(--text-muted);">' + esc(s.host) + '</td>' +
+                '<td style="color:var(--text-muted);">' + esc(s.poller) + '</td>' +
+                '<td><span class="status-badge-sm status-' + esc(s.status) + '">' + esc(s.status) + '</span></td>' +
+                '<td><button class="btn btn-danger btn-sm" onclick="deleteService(' + i + ')">Supprimer</button></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    function esc(str) {
+        return String(str)
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;');
+    }
+
+    // ─── Init ────────────────────────────────────────────────────────────────
+    (function init() {
+        var s = getSettings();
+
+        // Apply saved theme
+        if (s.theme && THEMES[s.theme]) {
+            applyThemeVars(THEMES[s.theme]);
+            document.querySelectorAll('.theme-swatch').forEach(function(el) {
+                el.classList.toggle('active', el.dataset.theme === s.theme);
+            });
+        }
+        if (s.bgMain) {
+            document.getElementById('bgColorPicker').value = s.bgMain;
+            syncBgDots(s.bgMain);
+        } else {
+            syncBgDots('#0f172a');
+        }
+
+        renderAuthState();
+    })();
+    </script>
+
+</body>
+</html>
